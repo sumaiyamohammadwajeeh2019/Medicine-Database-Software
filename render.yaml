@@ -1,6 +1,6 @@
 services:
     - type: web
-    name: Medicine Reference Software
+    name: Medicine Database Software
     env: static
     plan: free
     buildCommand: echo "v15 FINAL - Halal + Voice + Bangla + Barcode + OCR + 250 Drugs + ICU Critical Care"
