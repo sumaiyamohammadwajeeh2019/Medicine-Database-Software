@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> Medicine Database Software - Dr. Sumaiya Mohammad</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#006A4E">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:#f5f7f5}
+.top{background:linear-gradient(135deg,#006A4E,#0d47a1);color:white;padding:10px;text-align:center;position:sticky;top:0;z-index:100}
+.top h1{font-size:16px}.top p{font-size:11px;opacity:.9}
+.tabs{display:flex;background:white;overflow-x:auto;position:sticky;top:48px;z-index:99;border-bottom:1px solid #ddd}
+.tab{padding:10px 12px;font-size:12px;font-weight:800;white-space:nowrap;cursor:pointer;border-bottom:3px solid transparent}
+.tab.active{border-color:#006A4E;color:#006A4E;background:#e8f5e9}
+.panel{display:none;padding:6px}.panel.active{display:block}
+.card{background:blue;border-radius:12px;padding:10px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);border-left:4px solid #006A4E}
+.card h3{font-size:12px;color:#006A4E}
+input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin:4px 0;font-size:13px}
+.btn{width:100%;padding:12px;border:0;border-radius:10px;font-weight:800;color:white;cursor:pointer;margin:5px 0}
+.btn-scan{background:linear-gradient(135deg,#006A4E,#2e7d32)} .btn-ocr{background:linear-gradient(135deg,#6a1b9a,#283593)}
+.btn-ped{background:#6a1b9a} .btn-int{background:#ad1457} .btn-pwa{background:#006A4E}
+.f-btn{padding:6px 10px;border:1px solid #ddd;border-radius:20px;font-size:11px;font-weight:700;background:white;cursor:pointer;margin:2px}
+.f-btn.active{background:#006A4E;color:white}
+.result{background:#e8f5e9;padding:8px;border-radius:8px;margin-top:6px;font-size:13px;white-space:pre-wrap}
+.pwa-banner{background:linear-gradient(135deg,#006A4E,#43a047);color:blue;padding:8px;border-radius:8px;font-size:12px;text-align:center;margin:6px 0}
+#reader{width:100%;border-radius:10px;overflow:hidden}
+</style>
+</head>
+<body>
+<div class="top"><div style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="28" height="28" viewBox="0 0 64 64" style="vertical-align:middle"><circle cx="32" cy="32" r="30" fill="#ffffff22" stroke="#fff" stroke-width="2"/><rect x="26" y="14" width="12" height="36" rx="6" fill="#2e7d32"/><rect x="14" y="26" width="36" height="12" rx="6" fill="#c62828"/><circle cx="32" cy="32" r="6" fill="#fbc02d"/></svg><h1>💊 Medicine reference software— Dr. Sumaiya Mohammad</h1></div><p>250 Drugs | Voice | Bangla | Halal | Barcode | OCR | ICU Critical Care</p><p style="font-size:10px;opacity:.95;margin-top:2px">Developed by Dr. Sumaiya Mohammad, SMRR Team, Bangladesh</p></div>
+<div class="tabs">
+<div class="tab active" onclick="showTab(event,'drug')">💊 Drugs</div>
+<div class="tab" onclick="showTab(event,'scan')">📷 Scan</div>
+<div class="tab" onclick="showTab(event,'ocr')">📄 OCR</div>
+<div class="tab" onclick="showTab(event,'halal')">🕌 Halal Guide</div>
+
+</div>
+
+<div id="scan" class="panel">
+<div class="card"><h3>📷 Barcode Scanner</h3><div id="reader"></div><button class="btn btn-scan" onclick="startScanner()">▶️ Start Camera Scan</button><button class="btn" style="background:#666" onclick="stopScanner()">⏹️ Stop</button><input type="text" id="manualBarcode" placeholder="Or type barcode: 8941101..."><button class="btn" style="background:#0d47a1" onclick="searchBarcodeManual()">Search Barcode</button><div id="scan_res" class="result">Ready to scan strip barcode</div></div>
+</div>
+
+<div id="ocr" class="panel">
+<div class="card"><h3>📄 Prescription OCR - AI Reader</h3><input type="file" id="ocrFile" accept="image/*" capture="environment" onchange="previewOCR(event)"><img id="ocrPreview" style="width:100%;max-height:200px;border-radius:8px;display:none;margin-top:6px"><div id="ocrProgress" style="font-size:10px;text-align:center;margin:4px 0"></div><button class="btn btn-ocr" onclick="runOCR()">🧠 Read Prescription with AI</button><div id="ocr_res" class="result">Upload prescription photo - AI will read drug names</div></div>
+</div>
+<div id="drug" class="panel active">
+<div style="background:white;padding:8px;position:sticky;top:0;z-index:10">
+<div style="display:flex;gap:6px"><input type="text" id="search" placeholder="🔍 Napa, Seclo... / বলুন" oninput="filterDrugs()" style="flex:1"><button onclick="startVoice()" style="background:#006A4E;color:black;border:0;padding:10px;border-radius:50%">🎤</button><button onclick="toggleLang()" id="langBtn" style="background:#ff6f00;color:white;border:0;padding:8px;border-radius:20px;font-size:10px">বাংলা</button></div>
+<div id="voiceStatus" style="font-size:10px;color:#006A4E;text-align:center;display:none">🎙️ Listening...</div>
+<div style="display:flex;flex-wrap:wrap;margin-top:6px">
+<button class="f-btn active" onclick="setCat(event,'all')">All 250</button>
+<button class="f-btn" style="background:#e3f2fd;border-color:#1565c0" onclick="setCat(event,'icu')">🏥 ICU</button>
+<button class="f-btn" style="background:#e8f5e9;border-color:#2e7d32" onclick="setCat(event,'halal')">✅ Halal</button>
+<button class="f-btn" style="background:#ffebee" onclick="setCat(event,'haram')">❌ Haram Check</button>
+<button class="f-btn" onclick="setCat(event,'analgesic')">Pain</button>
+<button class="f-btn" onclick="setCat(event,'antibiotic')">Antibiotic</button>
+<button class="f-btn" onclick="setCat(event,'gastric')">Gastric</button>
+<button class="f-btn" onclick="setCat(event,'htn')">HTN</button>
+<button class="f-btn" onclick="setCat(event,'diabetes')">Diabetes</button>
+<button class="f-btn" onclick="setCat(event,'gyn')">Gyn</button>
+</div>
+</div>
+<div id="drugList"></div>
+</div>
+
+
+<div id="halal" class="panel"><div class="card"><h3>🕌 Halal Guide - Dr. Sumaiya</h3><div style="font-size:11px;line-height:1.7"><b>✅ HALAL:</b> Tablets - Paracetamol, Metformin, Amlodipine - Synthetic<br><b>⚠️ CHECK:</b> Capsule - Look HPMC not Gelatin, Syrup - Alcohol Free<br><b>❌ HARAM:</b> Heparin porcine, Alcohol syrup >5%, Porcine gelatin<br><b>💡 TIP:</b> Ask "HPMC cap? Alcohol free?" Tablet is most Halal<br><b>Emergency:</b> Haram allowed if no alternative - Necessity principle</div></div></div>
+
+
+<script>
+const drugs=[
+{g:"Paracetamol 500mg",brand:"Napa, Ace",cat:"analgesic",dose:"500-1000mg 6-8hrly",ind:"Fever, Headache",contra:"Liver disease",side:"Liver",price:"৳1.2",preg:"B",note:"Safest",halal:"halal"},
+{g:"Paracetamol 120mg/5ml Syrup",brand:"Napa Syrup",cat:"analgesic",dose:"120mg/5ml 6hrly child",ind:"Fever child",contra:"",side:"",price:"৳25",preg:"B",note:"Check alcohol free",halal:"doubtful"},
+{g:"Ibuprofen 400mg",brand:"Flamex, Inflam",cat:"analgesic",dose:"400mg 8hrly after food",ind:"Pain, Dental",contra:"Ulcer, CKD",side:"Gastritis",price:"৳2.5",preg:"C",note:"Avoid 3rd tri",halal:"halal"},
+{g:"Diclofenac 50mg",brand:"Clofenac, Diclo",cat:"analgesic",dose:"50mg BD",ind:"Joint pain",contra:"Ulcer",side:"Gastric",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Naproxen 500mg",brand:"Naprosyn",cat:"analgesic",dose:"500mg BD",ind:"Arthritis",contra:"Ulcer",side:"",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Ketorolac 10mg",brand:"Rolac",cat:"analgesic",dose:"10mg 6hrly max 5 days",ind:"Severe pain",contra:"Ulcer, CKD",side:"",price:"৳5",preg:"C",note:"Short term",halal:"halal"},
+{g:"Tramadol 50mg",brand:"Anadol",cat:"analgesic",dose:"50mg 8hrly",ind:"Severe pain",contra:"Epilepsy",side:"Drowsy",price:"৳4",preg:"C",note:"Addictive",halal:"halal"},
+{g:"Omeprazole 20mg",brand:"Seclo, Losectil",cat:"gastric",dose:"20mg OD before BF",ind:"GERD, Ulcer",contra:"",side:"Headache",price:"৳5",preg:"C",note:"HPMC cap Halal",halal:"halal"},
+{g:"Esomeprazole 20mg",brand:"Esoz, Maxpro",cat:"gastric",dose:"20mg OD",ind:"GERD",contra:"",side:"",price:"৳7",preg:"B",note:"Better",halal:"halal"},
+{g:"Pantoprazole 40mg",brand:"Pantobex, Pantonix",cat:"gastric",dose:"40mg OD",ind:"Ulcer, Safe with clopidogrel",contra:"",side:"",price:"৳6",preg:"B",note:"Use with Clopidogrel",halal:"halal"},
+{g:"Rabeprazole 20mg",brand:"Finix, Rabe",cat:"gastric",dose:"20mg OD",ind:"GERD",contra:"",side:"",price:"৳8",preg:"B",note:"",halal:"halal"},
+{g:"Omeprazole+Domperidone",brand:"Seclo-M",cat:"gastric",dose:"OD before BF",ind:"GERD+vomit",contra:"",side:"",price:"৳8",preg:"C",note:"",halal:"halal"},
+{g:"Domperidone 10mg",brand:"Motigut, Domiren",cat:"gastric",dose:"10mg TDS before food",ind:"Vomiting",contra:"Arrhythmia",side:"",price:"৳3",preg:"C",note:"",halal:"halal"},
+{g:"Ondansetron 8mg",brand:"Onaseron, Emistat",cat:"gastric",dose:"8mg BD",ind:"Vomiting chemo",contra:"",side:"Headache",price:"৳10",preg:"B",note:"Safe preg vomiting",halal:"halal"},
+{g:"Metoclopramide 10mg",brand:"Metoclon",cat:"gastric",dose:"10mg TDS",ind:"Vomiting",contra:"Parkinson",side:"Drowsy",price:"৳1.5",preg:"B",note:"",halal:"halal"},
+{g:"ORS",brand:"Orsaline-N",cat:"gastric",dose:"1 sachet 500ml water",ind:"Diarrhea",contra:"",side:"",price:"৳6",preg:"A",note:"Safest",halal:"halal"},
+{g:"Zinc 20mg",brand:"Bicozin, Zinc",cat:"gastric",dose:"20mg OD 10-14 days",ind:"Diarrhea child",contra:"",side:"",price:"৳2",preg:"A",note:"",halal:"halal"},
+{g:"Hyoscine 10mg",brand:"Buscopan",cat:"gastric",dose:"10mg TDS",ind:"Abdominal cramp",contra:"Glaucoma",side:"Dry mouth",price:"৳4",preg:"C",note:"",halal:"halal"},
+{g:"Mebeverine 135mg",brand:"Colospa",cat:"gastric",dose:"135mg TDS before food",ind:"IBS",contra:"",side:"",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Loperamide 2mg",brand:"Imotil",cat:"gastric",dose:"2mg after each loose",ind:"Diarrhea",contra:"Dysentery",side:"Constip",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Azithromycin 500mg",brand:"Zimax, Azithrocin",cat:"antibiotic",dose:"500mg D1 then 250mg 4 days",ind:"Typhoid, Pneumonia",contra:"Liver",side:"Diarrhea",price:"৳35",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Amoxicillin 500mg",brand:"Fimoxyl, Amox",cat:"antibiotic",dose:"500mg 8hrly",ind:"Ear, Dental, Throat",contra:"Pen allergy",side:"Rash",price:"৳4",preg:"B",note:"Safe",halal:"halal"},
+{g:"Amoxicillin+Clavulanic 625mg",brand:"Augment, Clavum",cat:"antibiotic",dose:"625mg 12hrly",ind:"Resistant infection",contra:"Pen allergy",side:"Diarrhea",price:"৳25",preg:"B",note:"",halal:"halal"},
+{g:"Ciprofloxacin 500mg",brand:"Ciprocin, Ciprox",cat:"antibiotic",dose:"500mg BD",ind:"UTI, Typhoid, Diarrhea",contra:"Preg, Child, Epilepsy",side:"Tendon",price:"৳7",preg:"C",note:"Avoid preg/child",halal:"halal"},
+{g:"Levofloxacin 500mg",brand:"Levoxin",cat:"antibiotic",dose:"500mg OD",ind:"Pneumonia, UTI",contra:"Preg, Child",side:"",price:"৳15",preg:"C",note:"",halal:"halal"},
+{g:"Metronidazole 400mg",brand:"Filmet, Amodis",cat:"antibiotic",dose:"400mg TDS",ind:"Amoebiasis, Anaerobic",contra:"Alcohol",side:"Metallic",price:"৳2",preg:"B",note:"NO alcohol 48hrs",halal:"halal"},
+{g:"Fluconazole 150mg",brand:"Omastin, Flugal",cat:"antibiotic",dose:"150mg weekly",ind:"Fungal, Vaginal",contra:"",side:"",price:"৳15",preg:"C",note:"",halal:"halal"},
+{g:"Doxycycline 100mg",brand:"Doxin",cat:"antibiotic",dose:"100mg BD",ind:"Acne, Atypical pneumonia",contra:"Preg, Child<8",side:"Esophagitis",price:"৳3",preg:"D",note:"Avoid preg",halal:"halal"},
+{g:"Cefixime 400mg",brand:"Trixon, Cef-3",cat:"antibiotic",dose:"400mg OD or 200mg BD",ind:"Typhoid, UTI",contra:"Pen allergy",side:"Diarrhea",price:"৳30",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Cefuroxime 500mg",brand:"Cefotil, Kilbac",cat:"antibiotic",dose:"500mg BD",ind:"RTI, UTI",contra:"Pen allergy",side:"",price:"৳35",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Ceftriaxone 1g Inj",brand:"Ceftriaxone",cat:"antibiotic",dose:"1-2g IV OD",ind:"Severe infection",contra:"Neonate calcium",side:"",price:"৳120",preg:"B",note:"",halal:"halal"},
+{g:"Cephradine 500mg",brand:"Pharmacef, Lebac",cat:"antibiotic",dose:"500mg 6hrly",ind:"Skin, UTI",contra:"Pen allergy",side:"",price:"৳10",preg:"B",note:"",halal:"halal"},
+{g:"Clindamycin 300mg",brand:"Dalacin",cat:"antibiotic",dose:"300mg 6hrly",ind:"Dental, Anaerobic",contra:"",side:"C. diff",price:"৳15",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Erythromycin 500mg",brand:"Erythrocin",cat:"antibiotic",dose:"500mg 6hrly",ind:"Pen allergy alternative",contra:"",side:"Gastric upset",price:"৳6",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Nitrofurantoin 100mg",brand:"Nifuran",cat:"antibiotic",dose:"100mg BD",ind:"UTI",contra:"G6PD, 3rd tri preg",side:"Lung fibrosis",price:"৳6",preg:"B",note:"Avoid 38wks+",halal:"halal"},
+{g:"Fosfomycin 3g Sachet",brand:"Urifos",cat:"antibiotic",dose:"3g single dose",ind:"UTI",contra:"",side:"",price:"৳250",preg:"B",note:"Safe preg UTI",halal:"halal"},
+{g:"Mebendazole 100mg",brand:"Vermox",cat:"antibiotic",dose:"100mg BD 3 days",ind:"Worm",contra:"Preg 1st tri",side:"",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Albendazole 400mg",brand:"Almex",cat:"antibiotic",dose:"400mg single",ind:"Worm",contra:"Preg 1st tri",side:"",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Amlodipine 5mg",brand:"Amlocard, Amlovas",cat:"htn",dose:"5mg OD",ind:"HTN, Angina",contra:"Aortic stenosis",side:"Ankle edema",price:"৳5",preg:"C",note:"",halal:"halal"},
+{g:"Amlodipine 10mg",brand:"Amlocard 10",cat:"htn",dose:"10mg OD",ind:"HTN",contra:"",side:"Edema",price:"৳8",preg:"C",note:"",halal:"halal"},
+{g:"Losartan 50mg",brand:"Losacard, Osartil",cat:"htn",dose:"50mg OD",ind:"HTN, Diabetic nephropathy",contra:"Preg",side:"Dizzy, Cough less",price:"৳7",preg:"D",note:"STOP preg",halal:"halal"},
+{g:"Telmisartan 40mg",brand:"Telmisart",cat:"htn",dose:"40mg OD",ind:"HTN",contra:"Preg",side:"",price:"৳8",preg:"D",note:"STOP preg",halal:"halal"},
+{g:"Olmesartan 20mg",brand:"Olmecard",cat:"htn",dose:"20mg OD",ind:"HTN",contra:"Preg",side:"",price:"৳8",preg:"D",note:"STOP preg",halal:"halal"},
+{g:"Enalapril 10mg",brand:"Enapril",cat:"htn",dose:"10mg OD",ind:"HTN, Heart failure",contra:"Preg, Cough",side:"Dry cough",price:"৳5",preg:"D",note:"STOP preg",halal:"halal"},
+{g:"Ramipril 5mg",brand:"Ramoril",cat:"htn",dose:"5mg OD",ind:"HTN, Post MI",contra:"Preg",side:"Cough",price:"৳6",preg:"D",note:"STOP preg",halal:"halal"},
+{g:"Atenolol 50mg",brand:"Tenolol",cat:"htn",dose:"50mg OD",ind:"HTN, Angina, Tremor",contra:"Asthma, Bradycardia",side:"Bradycardia",price:"৳3",preg:"D",note:"Low birth weight",halal:"halal"},
+{g:"Bisoprolol 5mg",brand:"Bisocor",cat:"htn",dose:"5mg OD",ind:"HTN, Heart failure",contra:"Asthma",side:"",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Carvedilol 12.5mg",brand:"Carvilor",cat:"htn",dose:"12.5mg BD",ind:"Heart failure",contra:"Asthma",side:"",price:"৳8",preg:"C",note:"",halal:"halal"},
+{g:"Metoprolol 50mg",brand:"Metocard",cat:"htn",dose:"50mg BD",ind:"HTN, Angina",contra:"Asthma",side:"",price:"৳5",preg:"C",note:"",halal:"halal"},
+{g:"Methyldopa 250mg",brand:"Aldomet, Methyldopa",cat:"htn",dose:"250mg BD-TDS",ind:"HTN in PREGNANCY BEST",contra:"Liver, Depression",side:"Drowsy",price:"৳5",preg:"B",note:"BEST for preg HTN",halal:"halal"},
+{g:"Nifedipine 20mg",brand:"Nifedipine",cat:"htn",dose:"20mg BD",ind:"HTN in preg, Preterm labor",contra:"",side:"Headache, Edema",price:"৳3",preg:"C",note:"Safe preg",halal:"halal"},
+{g:"Hydralazine 25mg",brand:"Hydralazine",cat:"htn",dose:"25mg TDS",ind:"Severe HTN preg",contra:"Lupus",side:"",price:"৳4",preg:"C",note:"Safe preg severe",halal:"halal"},
+{g:"Furosemide 40mg",brand:"Fusid, Lasix",cat:"htn",dose:"40mg OD morning",ind:"Edema, HTN, Heart failure",contra:"Hypokalemia",side:"Low K",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Spironolactone 50mg",brand:"Aldactone",cat:"htn",dose:"50mg OD",ind:"Edema, Heart failure, PCOS",contra:"High K, Preg",side:"High K, Gynecomastia",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Aspirin 75mg",brand:"Ecosprin, Lopirel",cat:"htn",dose:"75mg OD after food",ind:"Heart attack, Stroke prevention",contra:"Ulcer, Bleeding",side:"Bleeding",price:"৳1",preg:"C",note:"Low dose safe in preg preeclampsia",halal:"halal"},
+{g:"Clopidogrel 75mg",brand:"Clocard, Clopilet",cat:"htn",dose:"75mg OD",ind:"Stent, Stroke",contra:"Bleeding",side:"Bleeding",price:"৳8",preg:"C",note:"Use pantoprazole",halal:"halal"},
+{g:"Atorvastatin 10mg",brand:"Anzitor, Atorva",cat:"htn",dose:"10-20mg night",ind:"High Cholesterol",contra:"Liver, Preg",side:"Muscle pain",price:"৳8",preg:"X",note:"STOP preg",halal:"halal"},
+{g:"Rosuvastatin 10mg",brand:"Rosuva",cat:"htn",dose:"10mg night",ind:"High Cholesterol",contra:"Liver, Preg",side:"Muscle pain",price:"৳10",preg:"X",note:"STOP preg",halal:"halal"},
+{g:"Glyceryl Trinitrate 0.5mg",brand:"GTN",cat:"htn",dose:"0.5mg sublingual",ind:"Angina chest pain",contra:"Low BP",side:"Headache",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Metformin 500mg",brand:"Comet, Metfo",cat:"diabetes",dose:"500mg BD after food",ind:"Type2, PCOS",contra:"DKA, eGFR<30",side:"Diarrhea, B12 low",price:"৳3.5",preg:"B",note:"Safe preg, PCOS",halal:"halal"},
+{g:"Metformin 1g",brand:"Comet 1g",cat:"diabetes",dose:"1g BD",ind:"Type2",contra:"",side:"",price:"৳6",preg:"B",note:"",halal:"halal"},
+{g:"Gliclazide 80mg",brand:"Diamicron",cat:"diabetes",dose:"80mg BD before food",ind:"Type2",contra:"Type1, Preg",side:"Hypoglycemia",price:"৳5",preg:"C",note:"Avoid preg",halal:"halal"},
+{g:"Glimepiride 2mg",brand:"Amaryl",cat:"diabetes",dose:"2mg OD before BF",ind:"Type2",contra:"Preg",side:"Hypoglycemia",price:"৳5",preg:"C",note:"Avoid preg",halal:"halal"},
+{g:"Sitagliptin 100mg",brand:"Sitacom",cat:"diabetes",dose:"100mg OD",ind:"Type2",contra:"Pancreatitis",side:"",price:"৳20",preg:"B",note:"",halal:"halal"},
+{g:"Linagliptin 5mg",brand:"Lijenta",cat:"diabetes",dose:"5mg OD",ind:"Type2 CKD safe",contra:"",side:"",price:"৳18",preg:"B",note:"Safe CKD",halal:"halal"},
+{g:"Empagliflozin 10mg",brand:"Empa",cat:"diabetes",dose:"10mg OD",ind:"Type2 + Heart failure",contra:"DKA",side:"UTI",price:"৳25",preg:"C",note:"Avoid preg",halal:"halal"},
+{g:"Insulin Glargine",brand:"Vibrenta",cat:"diabetes",dose:"SC OD night",ind:"Type1/2",contra:"Hypo",side:"Hypo",price:"৳800",preg:"B",note:"Safe preg - Human Halal",halal:"halal"},
+{g:"Insulin 30/70",brand:"Ansulin",cat:"diabetes",dose:"SC BD before food",ind:"Type1/2",contra:"Hypo",side:"Hypo",price:"৳450",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Cetirizine 10mg",brand:"Cetir, Alerid",cat:"analgesic",dose:"10mg OD night",ind:"Allergy, Itch",contra:"",side:"Drowsy",price:"৳2",preg:"B",note:"Syrup check alcohol",halal:"doubtful"},
+{g:"Levocetirizine 5mg",brand:"Leset, Cetizin",cat:"analgesic",dose:"5mg OD night",ind:"Allergy",contra:"",side:"Less drowsy",price:"৳3",preg:"B",note:"",halal:"halal"},
+{g:"Fexofenadine 120mg",brand:"Fexo",cat:"analgesic",dose:"120mg OD",ind:"Allergy no drowsy",contra:"",side:"",price:"৳6",preg:"C",note:"",halal:"halal"},
+{g:"Chlorpheniramine 4mg",brand:"Alergasin",cat:"analgesic",dose:"4mg TDS",ind:"Allergy, Cold",contra:"",side:"Drowsy",price:"৳1",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Salbutamol 2mg Tab",brand:"Ventolin, Salbutol",cat:"analgesic",dose:"2-4mg TDS",ind:"Asthma",contra:"",side:"Tremor",price:"৳1",preg:"C",note:"",halal:"halal"},
+{g:"Salbutamol Inhaler",brand:"Ventolin Inhaler",cat:"analgesic",dose:"2 puff 6hrly",ind:"Asthma acute",contra:"",side:"Tremor",price:"৳250",preg:"C",note:"Safe preg",halal:"halal"},
+{g:"Montelukast 10mg",brand:"Montair, Montene",cat:"analgesic",dose:"10mg night",ind:"Asthma, Allergy",contra:"",side:"Nightmare",price:"৳8",preg:"B",note:"",halal:"halal"},
+{g:"Theophylline 200mg",brand:"Theophylline",cat:"analgesic",dose:"200mg BD",ind:"Asthma, COPD",contra:"",side:"Tachycardia",price:"৳3",preg:"C",note:"",halal:"halal"},
+{g:"Prednisolone 10mg",brand:"Prednisolone",cat:"analgesic",dose:"10mg OD morning",ind:"Asthma, Allergy, Arthritis",contra:"Infection, Ulcer",side:"Weight, Sugar up",price:"৳2",preg:"C",note:"Low dose safe preg",halal:"halal"},
+{g:"Dexamethasone 0.5mg",brand:"Dexa",cat:"analgesic",dose:"0.5mg",ind:"Allergy, Preterm labor lung",contra:"",side:"",price:"৳1",preg:"C",note:"Used for fetal lung",halal:"halal"},
+{g:"Betamethasone Inj",brand:"Betamethasone",cat:"gyn",dose:"12mg IM 2 doses",ind:"Preterm fetal lung maturity",contra:"",side:"",price:"৳40",preg:"C",note:"Life saving",halal:"halal"},
+{g:"Folic Acid 5mg",brand:"Folvite, Folison",cat:"gyn",dose:"5mg OD",ind:"Pregnancy, Anemia",contra:"",side:"",price:"৳1",preg:"A",note:"BEST preg",halal:"halal"},
+{g:"Iron+Folic Acid",brand:"Hemofix FZ, Irofol",cat:"gyn",dose:"OD",ind:"Anemia preg",contra:"",side:"Black stool, Constip",price:"৳4",preg:"A",note:"",halal:"halal"},
+{g:"Calcium 500mg",brand:"Calbo-D",cat:"gyn",dose:"500mg BD",ind:"Preg, Osteoporosis",contra:"Kidney stone",side:"Constip",price:"৳5",preg:"A",note:"",halal:"halal"},
+{g:"Vitamin D3 2000IU",brand:"D-Rise",cat:"gyn",dose:"2000IU OD",ind:"Vit D deficiency",contra:"High calcium",side:"",price:"৳6",preg:"A",note:"Sheep wool - scholars differ",halal:"doubtful"},
+{g:"Magnesium 150mg",brand:"Magna",cat:"gyn",dose:"150mg BD",ind:"Leg cramp preg",contra:"",side:"Diarrhea",price:"৳5",preg:"A",note:"",halal:"halal"},
+{g:"Progesterone 100mg",brand:"Utrogestan",cat:"gyn",dose:"100mg BD vaginal",ind:"Threatened abortion, IVF",contra:"",side:"Drowsy",price:"৳25",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Dydrogesterone 10mg",brand:"Duphaston",cat:"gyn",dose:"10mg BD",ind:"Threatened abortion",contra:"",side:"",price:"৳22",preg:"B",note:"Safe",halal:"halal"},
+{g:"Misoprostol 200mcg",brand:"Misoprost",cat:"gyn",dose:"As per gyn",ind:"PPH, Abortion, Ulcer",contra:"Preg if not wanted",side:"Bleeding",price:"৳10",preg:"X",note:"Use only hospital",halal:"halal"},
+{g:"Tranexamic Acid 500mg",brand:"Traxyl",cat:"gyn",dose:"500mg TDS",ind:"Heavy period, PPH",contra:"Thrombosis",side:"",price:"৳10",preg:"B",note:"",halal:"halal"},
+{g:"Mefenamic Acid 500mg",brand:"Mefenamic",cat:"gyn",dose:"500mg TDS",ind:"Period pain",contra:"Ulcer, Preg 3rd tri",side:"Diarrhea",price:"৳4",preg:"C",note:"",halal:"halal"},
+{g:"Norethisterone 5mg",brand:"Menoral",cat:"gyn",dose:"5mg TDS",ind:"Heavy period, Postpone period",contra:"Thrombosis",side:"",price:"৳4",preg:"D",note:"",halal:"halal"},
+{g:"Combined OCP",brand:"Femicon, Marvelon",cat:"gyn",dose:"1 tab OD",ind:"Contraception, PCOS",contra:"Thrombosis, Smoker>35",side:"Nausea",price:"৳30/month",preg:"X",note:"STOP before preg",halal:"halal"},
+{g:"Levonorgestrel 1.5mg",brand:"Emcon, Norix",cat:"gyn",dose:"1.5mg single",ind:"Emergency contraception",contra:"",side:"Nausea",price:"৳50",preg:"X",note:"",halal:"halal"},
+{g:"Clomiphene 50mg",brand:"Ova-Mit",cat:"gyn",dose:"50mg OD D2-D6",ind:"PCOS infertility",contra:"Liver, Preg",side:"Hot flush",price:"৳10",preg:"X",note:"",halal:"halal"},
+{g:"Letrozole 2.5mg",brand:"Letroz",cat:"gyn",dose:"2.5mg OD D2-D6",ind:"PCOS infertility BEST",contra:"Preg",side:"",price:"৳15",preg:"D",note:"Better than clomid",halal:"halal"},
+{g:"Metformin for PCOS",brand:"Comet PCOS",cat:"gyn",dose:"500mg BD",ind:"PCOS",contra:"",side:"",price:"৳3.5",preg:"B",note:"Safe",halal:"halal"},
+{g:"Levothyroxine 50mcg",brand:"Thyrox, Thyronor",cat:"htn",dose:"50mcg OD empty stomach",ind:"Hypothyroid",contra:"",side:"",price:"৳4",preg:"A",note:"Safe preg - Increase dose in preg",halal:"halal"},
+{g:"Carbimazole 10mg",brand:"Neo-Mercazole",cat:"htn",dose:"10mg TDS",ind:"Hyperthyroid",contra:"Preg 1st tri",side:"Agranulocytosis",price:"৳5",preg:"D",note:"Use PTU in 1st tri",halal:"halal"},
+{g:"Propylthiouracil 50mg",brand:"PTU",cat:"htn",dose:"50mg TDS",ind:"Hyperthyroid in 1st tri preg",contra:"Liver",side:"Liver injury",price:"৳6",preg:"D",note:"Safer 1st tri than carbimazole",halal:"halal"},
+{g:"Vitamin B1 B6 B12",brand:"Neuro-B",cat:"analgesic",dose:"1 tab OD",ind:"Neuropathy, Weakness",contra:"",side:"",price:"৳4",preg:"A",note:"Safe",halal:"halal"},
+{g:"Pregabalin 75mg",brand:"Prelica",cat:"analgesic",dose:"75mg night",ind:"Neuropathic pain",contra:"",side:"Drowsy",price:"৳10",preg:"C",note:"",halal:"halal"},
+{g:"Amitriptyline 10mg",brand:"Amitrip",cat:"analgesic",dose:"10mg night",ind:"Depression, Migraine, Neuropathy",contra:"Heart block",side:"Drowsy, Dry mouth",price:"৳2",preg:"C",note:"",halal:"halal"},
+{g:"Fluoxetine 20mg",brand:"Deprol",cat:"analgesic",dose:"20mg morning",ind:"Depression, OCD",contra:"",side:"Nausea",price:"৳5",preg:"C",note:"Safe preg if needed",halal:"halal"},
+{g:"Sertraline 50mg",brand:"Serlin",cat:"analgesic",dose:"50mg OD",ind:"Depression BEST in preg",contra:"",side:"",price:"৳8",preg:"C",note:"BEST antidepressant in preg",halal:"halal"},
+{g:"Alprazolam 0.5mg",brand:"Anxium",cat:"analgesic",dose:"0.5mg night",ind:"Anxiety, Insomnia",contra:"Preg, Addiction",side:"Addiction",price:"৳2",preg:"D",note:"Avoid preg, Addictive",halal:"halal"},
+{g:"Clonazepam 0.5mg",brand:"Cloron",cat:"analgesic",dose:"0.5mg night",ind:"Epilepsy, Anxiety",contra:"",side:"Drowsy",price:"৳3",preg:"D",note:"",halal:"halal"},
+{g:"Sodium Valproate 200mg",brand:"Valproate",cat:"analgesic",dose:"200mg BD",ind:"Epilepsy",contra:"Preg, Liver, PCOS",side:"Weight, Hair loss, Teratogenic",price:"৳6",preg:"X",note:"AVOID preg - 10% birth defect",halal:"halal"},
+{g:"Carbamazepine 200mg",brand:"Tegretol",cat:"analgesic",dose:"200mg BD",ind:"Epilepsy, Trigeminal neuralgia",contra:"",side:"Drowsy",price:"৳5",preg:"D",note:"Avoid preg if possible",halal:"halal"},
+{g:"Levetiracetam 500mg",brand:"Levera",cat:"analgesic",dose:"500mg BD",ind:"Epilepsy SAFEST in preg",contra:"",side:"",price:"৳15",preg:"C",note:"SAFEST epilepsy drug in preg",halal:"halal"},
+{g:"Paracetamol Suppository",brand:"Napa Supp",cat:"analgesic",dose:"120-500mg PR",ind:"Fever when vomiting",contra:"",side:"",price:"৳8",preg:"B",note:"",halal:"halal"},
+{g:"Glycerin Suppository",brand:"Glycerin Supp",cat:"gastric",dose:"1 PR",ind:"Constipation",contra:"",side:"",price:"৳5",preg:"A",note:"Safe preg",halal:"halal"},
+{g:"Lactulose Syrup",brand:"Lactulose",cat:"gastric",dose:"10-20ml night",ind:"Constipation preg",contra:"",side:"Bloat",price:"৳120",preg:"B",note:"Safe preg - Check alcohol free",halal:"doubtful"},
+{g:"Bisacodyl 5mg",brand:"Dulcolax",cat:"gastric",dose:"5-10mg night",ind:"Constipation",contra:"",side:"Cramp",price:"৳3",preg:"C",note:"",halal:"halal"},
+{g:"Metronidazole Syrup",brand:"Filmet Syrup",cat:"antibiotic",dose:"200mg/5ml",ind:"Child amoebiasis",contra:"Alcohol",side:"",price:"৳35",preg:"B",note:"Check alcohol free",halal:"doubtful"},
+{g:"Albendazole Syrup",brand:"Almex Syrup",cat:"antibiotic",dose:"10ml single",ind:"Worm child",contra:"",side:"",price:"৳25",preg:"C",note:"",halal:"doubtful"},
+{g:"Cetirizine Syrup",brand:"Cetir Syrup",cat:"analgesic",dose:"5ml OD",ind:"Child allergy",contra:"",side:"",price:"৳45",preg:"B",note:"Check alcohol free",halal:"doubtful"},
+{g:"Salbutamol Syrup",brand:"Ventolin Syrup",cat:"analgesic",dose:"2mg/5ml",ind:"Child asthma",contra:"",side:"Tremor",price:"৳35",preg:"C",note:"Check alcohol free",halal:"doubtful"},
+{g:"Prednisolone Syrup",brand:"Prednisolone Syrup",cat:"analgesic",dose:"5mg/5ml",ind:"Child asthma",contra:"",side:"",price:"৳60",preg:"C",note:"",halal:"doubtful"},
+{g:"Azithromycin Syrup",brand:"Zimax Syrup",cat:"antibiotic",dose:"200mg/5ml",ind:"Child typhoid",contra:"",side:"",price:"৳120",preg:"B",note:"Check alcohol",halal:"doubtful"},
+{g:"Cefixime Syrup",brand:"Trixon Syrup",cat:"antibiotic",dose:"100mg/5ml",ind:"Child UTI",contra:"",side:"",price:"৳180",preg:"B",note:"Check alcohol",halal:"doubtful"},
+{g:"Amoxicillin Syrup",brand:"Fimoxyl Syrup",cat:"antibiotic",dose:"125mg/5ml",ind:"Child ear infection",contra:"",side:"",price:"৳65",preg:"B",note:"Check alcohol",halal:"doubtful"},
+{g:"Paracetamol Drop",brand:"Napa Drop",cat:"analgesic",dose:"15mg/kg",ind:"Infant fever",contra:"",side:"",price:"৳20",preg:"B",note:"",halal:"halal"},
+{g:"Vitamin D Drop",brand:"D-Rise Drop",cat:"gyn",dose:"400IU OD infant",ind:"Infant vit D",contra:"",side:"",price:"৳150",preg:"A",note:"",halal:"halal"},
+{g:"Multivitamin Syrup",brand:"Zincovit",cat:"gyn",dose:"5ml OD",ind:"Weakness child",contra:"",side:"",price:"৳90",preg:"A",note:"Check alcohol",halal:"doubtful"},
+{g:"Cough Syrup Dextromethorphan",brand:"Dextromethorphan",cat:"analgesic",dose:"10ml TDS",ind:"Dry cough",contra:"",side:"Drowsy",price:"৳60",preg:"C",note:"Many contain alcohol - Check",halal:"haram"},
+{g:"Ambroxol Syrup",brand:"Ambrox",cat:"analgesic",dose:"5ml TDS",ind:"Productive cough",contra:"",side:"",price:"৳55",preg:"C",note:"Check alcohol",halal:"doubtful"},
+{g:"Ketoconazole Shampoo",brand:"Ketoral",cat:"antibiotic",dose:"2x week",ind:"Dandruff",contra:"",side:"",price:"৳120",preg:"C",note:"",halal:"halal"},
+{g:"Miconazole Cream",brand:"Micon",cat:"antibiotic",dose:"BD local",ind:"Fungal skin",contra:"",side:"",price:"৳45",preg:"C",note:"",halal:"halal"},
+{g:"Clotrimazole Vaginal",brand:"Clotrim V",cat:"antibiotic",dose:"200mg vaginal night 3 days",ind:"Vaginal fungal preg safe",contra:"",side:"",price:"৳60",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Povidone Iodine",brand:"Povidon",cat:"antibiotic",dose:"Local",ind:"Wound",contra:"Preg",side:"",price:"৳40",preg:"D",note:"Avoid preg",halal:"halal"},
+{g:"Silver Sulfadiazine",brand:"Burnsil",cat:"antibiotic",dose:"Local",ind:"Burn",contra:"",side:"",price:"৳60",preg:"B",note:"",halal:"halal"},
+{g:"Mupirocin Ointment",brand:"Bactrocin",cat:"antibiotic",dose:"Local TDS",ind:"Impetigo",contra:"",side:"",price:"৳80",preg:"B",note:"",halal:"halal"},
+{g:"Hydrocortisone Cream 1%",brand:"Hydrocort",cat:"analgesic",dose:"Local BD",ind:"Eczema",contra:"Infection",side:"Thin skin",price:"৳35",preg:"C",note:"",halal:"halal"},
+{g:"Betamethasone Cream",brand:"Betameson",cat:"analgesic",dose:"Local BD",ind:"Severe eczema",contra:"",side:"",price:"৳40",preg:"C",note:"",halal:"halal"},
+{g:"Clobetasol Cream",brand:"Clobeta",cat:"analgesic",dose:"Local OD",ind:"Psoriasis",contra:"",side:"",price:"৳50",preg:"C",note:"Potent",halal:"halal"},
+{g:"Permethrin 5% Cream",brand:"Permin",cat:"antibiotic",dose:"Single overnight",ind:"Scabies",contra:"",side:"",price:"৳80",preg:"B",note:"Safe preg",halal:"halal"},
+{g:"Benzyl Benzoate",brand:"Benzyl",cat:"antibiotic",dose:"Night",ind:"Scabies",contra:"Child",side:"Burn",price:"৳45",preg:"B",note:"",halal:"halal"},
+{g:"Ivermectin 6mg",brand:"Ivera",cat:"antibiotic",dose:"6mg single or 12mg",ind:"Scabies, Worm",contra:"Preg",side:"",price:"৳10",preg:"C",note:"",halal:"halal"}
+];
+let currentCat='all'; let currentLang='en';
+function showTab(e,id){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById(id).classList.add('active');e.target.classList.add('active')}
+function setCat(e,c){document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));e.target.classList.add('active');currentCat=c;filterDrugs()}
+function filterDrugs(){
+ let q=(document.getElementById('search')?.value||'').toLowerCase();
+ let list=document.getElementById('drugList'); if(!list) return; list.innerHTML='';
+ let filtered=drugs.filter(d=>{
+  let mc=true; if(currentCat=='all') mc=true; else if(currentCat=='halal') mc=d.halal=='halal'; else if(currentCat=='haram') mc=d.halal!='halal'; else mc=d.cat==currentCat;
+  let ms=q==''||d.g.toLowerCase().includes(q)||d.brand.toLowerCase().includes(q)||d.preg.toLowerCase().includes(q); return mc&&ms;
+ });
+ filtered.forEach(d=>{
+  let badge=d.halal=='halal'?'<span style="background:#2e7d32;color:white;padding:2px 6px;border-radius:10px;font-size:10px">✅ HALAL</span>':d.halal=='haram'?'<span style="background:#c62828;color:black;padding:2px 6px;border-radius:10px;font-size:10px">❌ HARAM</span>':'<span style="background:#ef6c00;color:black;padding:2px 6px;border-radius:10px;font-size:10px">⚠️ CHECK</span>';
+  list.innerHTML+=`<div class="card" style="border-left:5px solid ${d.halal=='halal'?'#2e7d32':d.halal=='haram'?'#c62828':'#ef6c00'}"><h3>${d.g} ${badge}</h3><div style="font-size:10px;color:#0d47a1">Brand: ${d.brand} | ${d.price} | Preg: ${d.preg}</div><div style="font-size:10px;margin-top:4px"><b>Dose:</b> ${d.dose}<br><b>Use:</b> ${d.ind}<br><b>Note:</b> ${d.note}</div></div>`;
+ });
+}
+drugs.push(
+{g:"Propofol 1% inj",brand:"Diprivan",cat:"icu",dose:"1-4 mg/kg/hr IV",ind:"Sedation mechanical vent",contra:"Egg/soy allergy",side:"Hypotension",price:"৳1200",preg:"C",note:"ICU sedative",halal:"halal"},
+{g:"Midazolam 5mg/ml inj",brand:"Dormicum",cat:"icu",dose:"0.02-0.1 mg/kg/hr",ind:"ICU sedation",contra:"Shock",side:"Resp depression",price:"৳80",preg:"D",note:"Benzodiazepine",halal:"halal"},
+{g:"Dexmedetomidine 100mcg/ml",brand:"Precedex",cat:"icu",dose:"0.2-1.4 mcg/kg/hr",ind:"ICU sedation analgesia",contra:"Heart block",side:"Bradycardia",price:"৳2500",preg:"C",note:"Alpha2 agonist",halal:"halal"},
+{g:"Fentanyl 50mcg/ml inj",brand:"Fentanyl",cat:"icu",dose:"25-100 mcg/hr IV",ind:"ICU analgesia",contra:"Resp depression",side:"Resp depression",price:"৳150",preg:"C",note:"Opioid",halal:"halal"},
+{g:"Morphine 10mg/ml inj",brand:"Morphine",cat:"icu",dose:"2-10 mg/hr IV",ind:"Pain ICU",contra:"Resp depression",side:"Hypotension",price:"৳60",preg:"C",note:"Opioid",halal:"halal"},
+{g:"Ketamine 50mg/ml inj",brand:"Ketalar",cat:"icu",dose:"1-2 mg/kg IV",ind:"RSI sedation",contra:"HTN",side:"Hallucination",price:"৳120",preg:"B",note:"Dissociative",halal:"halal"},
+{g:"Etomidate 2mg/ml inj",brand:"Amidate",cat:"icu",dose:"0.3 mg/kg IV",ind:"RSI",contra:"Adrenal insuff",side:"Myoclonus",price:"৳300",preg:"C",note:"Induction",halal:"halal"},
+{g:"Rocuronium 10mg/ml inj",brand:"Zemuron",cat:"icu",dose:"0.6-1.2 mg/kg IV",ind:"Intubation",contra:"None",side:"Paralysis",price:"৳400",preg:"C",note:"NM blocker",halal:"halal"},
+{g:"Vecuronium 10mg vial",brand:"Norcuron",cat:"icu",dose:"0.1 mg/kg IV",ind:"ICU paralysis",contra:"None",side:"Paralysis",price:"৳350",preg:"C",note:"NM blocker",halal:"halal"},
+{g:"Succinylcholine 20mg/ml",brand:"Anectine",cat:"icu",dose:"1-1.5 mg/kg IV",ind:"RSI",contra:"HyperK",side:"Fasciculation",price:"৳120",preg:"C",note:"Depolarizing",halal:"halal"},
+{g:"Cisatracurium 2mg/ml",brand:"Nimbex",cat:"icu",dose:"0.15-0.2 mg/kg",ind:"ICU",contra:"None",side:"Paralysis",price:"৳900",preg:"B",note:"NM blocker",halal:"halal"},
+{g:"Norepinephrine 1mg/ml",brand:"Levophed",cat:"icu",dose:"0.05-0.5 mcg/kg/min",ind:"Septic shock",contra:"Hypovolemia",side:"Arrhythmia",price:"৳200",preg:"C",note:"Pressor",halal:"halal"},
+{g:"Epinephrine 1mg/ml inj",brand:"Adrenaline",cat:"icu",dose:"0.05-2 mcg/kg/min",ind:"Shock/anaphylaxis",contra:"None",side:"Tachycardia",price:"৳50",preg:"C",note:"Pressor",halal:"halal"},
+{g:"Dopamine 40mg/ml inj",brand:"Dopamine",cat:"icu",dose:"2-20 mcg/kg/min",ind:"Shock",contra:"Pheo",side:"Arrhythmia",price:"৳80",preg:"C",note:"Inotrope",halal:"halal"},
+{g:"Dobutamine 250mg vial",brand:"Dobutrex",cat:"icu",dose:"2.5-10 mcg/kg/min",ind:"Cardiogenic shock",contra:"HCM",side:"Tachycardia",price:"৳300",preg:"B",note:"Inotrope",halal:"halal"},
+{g:"Vasopressin 20U/ml",brand:"Pitressin",cat:"icu",dose:"0.01-0.04 U/min",ind:"Septic shock",contra:"CAD",side:"Ischemia",price:"৳600",preg:"C",note:"Pressor",halal:"halal"},
+{g:"Phenylephrine 10mg/ml",brand:"Neo-Synephrine",cat:"icu",dose:"0.5-6 mcg/kg/min",ind:"Hypotension",contra:"Bradycardia",side:"HTN",price:"৳150",preg:"C",note:"Pressor",halal:"halal"},
+{g:"Milrinone 1mg/ml inj",brand:"Primacor",cat:"icu",dose:"0.375-0.75 mcg/kg/min",ind:"Heart failure",contra:"Severe AS",side:"Arrhythmia",price:"৳700",preg:"C",note:"PDE3 inhibitor",halal:"halal"},
+{g:"Levosimendan 2.5mg/ml",brand:"Simdax",cat:"icu",dose:"0.05-0.2 mcg/kg/min",ind:"Acute HF",contra:"Severe hypotension",side:"Hypotension",price:"৳4500",preg:"C",note:"Calcium sensitizer",halal:"halal"},
+{g:"Amiodarone 50mg/ml inj",brand:"Cordarone",cat:"icu",dose:"150mg IV bolus",ind:"VT/VF",contra:"Heart block",side:"Hypotension",price:"৳250",preg:"D",note:"Antiarrhythmic",halal:"halal"},
+{g:"Lidocaine 2% inj",brand:"Xylocaine",cat:"icu",dose:"1-1.5 mg/kg IV",ind:"VT",contra:"Heart block",side:"Seizure",price:"৳80",preg:"B",note:"Antiarrhythmic",halal:"halal"},
+{g:"Adenosine 3mg/ml inj",brand:"Adenocard",cat:"icu",dose:"6mg IV rapid",ind:"SVT",contra:"Heart block",side:"Flushing",price:"৳200",preg:"C",note:"Antiarrhythmic",halal:"halal"},
+{g:"Magnesium sulfate 50%",brand:"MgSO4",cat:"icu",dose:"1-2g IV",ind:"Torsades/eclampsia",contra:"Heart block",side:"Hypotension",price:"৳40",preg:"B",note:"Electrolyte",halal:"halal"},
+{g:"Calcium gluconate 10%",brand:"Ca Gluconate",cat:"icu",dose:"1-2g IV",ind:"Hypocalcemia/hyperK",contra:"Hypercalcemia",side:"Bradycardia",price:"৳60",preg:"C",note:"Electrolyte",halal:"halal"},
+{g:"Potassium chloride 2mEq/ml",brand:"KCl",cat:"icu",dose:"10-20 mEq/hr",ind:"Hypokalemia",contra:"Hyperkalemia",side:"Arrhythmia",price:"৳30",preg:"C",note:"Electrolyte",halal:"halal"}
+,
+{g:"Sodium bicarbonate 8.4%",brand:"NaHCO3",cat:"icu",dose:"50-100 mEq IV",ind:"Acidosis/hyperK",contra:"Alkalosis",side:"Fluid overload",price:"৳70",preg:"C",note:"Buffer",halal:"halal"},
+{g:"Furosemide 10mg/ml inj",brand:"Lasix IV",cat:"icu",dose:"20-80 mg IV",ind:"Fluid overload",contra:"Anuria",side:"Hypokalemia",price:"৳40",preg:"C",note:"Loop diuretic",halal:"halal"},
+{g:"Mannitol 20% inj",brand:"Mannitol",cat:"icu",dose:"0.25-1 g/kg",ind:"ICP raised",contra:"Anuria",side:"Fluid overload",price:"৳180",preg:"C",note:"Osmotic",halal:"halal"},
+{g:"Hypertonic saline 3%",brand:"3% NaCl",cat:"icu",dose:"100-250 ml IV",ind:"Hyponatremia/ICP",contra:"Hypernatremia",side:"Fluid overload",price:"৳90",preg:"C",note:"Hypertonic",halal:"halal"},
+{g:"Dexamethasone 4mg/ml inj",brand:"Decadron",cat:"icu",dose:"4-10 mg IV",ind:"Cerebral edema",contra:"Infection",side:"Hyperglycemia",price:"৳60",preg:"C",note:"Steroid",halal:"halal"},
+{g:"Hydrocortisone 100mg inj",brand:"Solu-Cortef",cat:"icu",dose:"50-100 mg IV q6-8h",ind:"Shock/adrenal",contra:"Infection",side:"Hyperglycemia",price:"৳120",preg:"C",note:"Steroid",halal:"halal"},
+{g:"Methylprednisolone 500mg",brand:"Solu-Medrol",cat:"icu",dose:"125 mg IV",ind:"ARDS",contra:"Infection",side:"Hyperglycemia",price:"৳400",preg:"C",note:"Steroid",halal:"halal"},
+{g:"Insulin regular 100U/ml",brand:"Actrapid",cat:"icu",dose:"IV infusion",ind:"DKA/hyperglycemia",contra:"Hypoglycemia",side:"Hypoglycemia",price:"৳350",preg:"B",note:"Insulin",halal:"halal"},
+{g:"Heparin 5000U/ml inj",brand:"Heparin",cat:"icu",dose:"5000 U SC/IV",ind:"DVT proph/PE",contra:"Bleeding",side:"Bleeding",price:"৳120",preg:"C",note:"Anticoagulant",halal:"halal"},
+{g:"Enoxaparin 40mg/0.4ml",brand:"Clexane",cat:"icu",dose:"40 mg SC OD",ind:"DVT proph",contra:"Bleeding",side:"Bleeding",price:"৳450",preg:"B",note:"LMWH",halal:"halal"},
+{g:"Warfarin 5mg tab",brand:"Coumadin",cat:"icu",dose:"2-10 mg OD",ind:"AF/PE",contra:"Preg",side:"Bleeding",price:"৳10",preg:"X",note:"Vitamin K antagonist",halal:"halal"},
+{g:"Alteplase 50mg vial",brand:"Activase",cat:"icu",dose:"0.9 mg/kg",ind:"Stroke/PE",contra:"Bleeding",side:"Bleeding",price:"৳120000",preg:"C",note:"tPA",halal:"halal"},
+{g:"Tranexamic acid 500mg/5ml",brand:"Cyklokapron",cat:"icu",dose:"1g IV",ind:"Bleeding",contra:"Thrombosis",side:"Nausea",price:"৳200",preg:"B",note:"Antifibrinolytic",halal:"halal"},
+{g:"Protamine sulfate 10mg/ml",brand:"Protamine",cat:"icu",dose:"1mg per 100U heparin",ind:"Heparin reversal",contra:"Fish allergy",side:"Hypotension",price:"৳180",preg:"C",note:"Reversal",halal:"halal"},
+{g:"Vitamin K 10mg/ml inj",brand:"Konakion",cat:"icu",dose:"10 mg IV/SC",ind:"Warfarin reversal",contra:"None",side:"Anaphylaxis",price:"৳120",preg:"C",note:"Vitamin K",halal:"halal"},
+{g:"Fresh frozen plasma",brand:"FFP",cat:"icu",dose:"10-15 ml/kg",ind:"Coagulopathy",contra:"Volume overload",side:"TRALI",price:"৳800",preg:"C",note:"Blood product",halal:"halal"},
+{g:"Packed RBC",brand:"PRBC",cat:"icu",dose:"1 unit",ind:"Anemia/bleeding",contra:"Volume overload",side:"Transfusion reaction",price:"৳1200",preg:"C",note:"Blood product",halal:"halal"},
+{g:"Platelet concentrate",brand:"Platelets",cat:"icu",dose:"1 unit/10kg",ind:"Thrombocytopenia",contra:"None",side:"Transfusion reaction",price:"৳1500",preg:"C",note:"Blood product",halal:"halal"},
+{g:"Albumin 20% 50ml",brand:"Albumin",cat:"icu",dose:"0.5-1 g/kg",ind:"Hypoalbuminemia",contra:"Heart failure",side:"Fluid overload",price:"৳2500",preg:"C",note:"Colloid",halal:"halal"},
+{g:"Normal saline 0.9% 500ml",brand:"NS",cat:"icu",dose:"As needed",ind:"Resuscitation",contra:"Fluid overload",side:"Edema",price:"৳60",preg:"A",note:"Crystalloid",halal:"halal"},
+{g:"Lactated Ringer 500ml",brand:"LR",cat:"icu",dose:"As needed",ind:"Resuscitation",contra:"Hyperkalemia",side:"None",price:"৳70",preg:"C",note:"Crystalloid",halal:"halal"},
+{g:"Dextrose 5% 500ml",brand:"D5W",cat:"icu",dose:"As needed",ind:"Free water",contra:"Hyperglycemia",side:"None",price:"৳50",preg:"C",note:"Crystalloid",halal:"halal"},
+{g:"Dextrose 50% 50ml",brand:"D50",cat:"icu",dose:"25-50 ml IV",ind:"Hypoglycemia",contra:"Hyperglycemia",side:"Extravasation",price:"৳80",preg:"C",note:"Concentrated",halal:"halal"},
+{g:"Piperacillin-tazobactam 4.5g",brand:"Tazocin",cat:"icu",dose:"4.5g IV q6-8h",ind:"Nosocomial infection",contra:"Pen allergy",side:"Diarrhea",price:"৳600",preg:"B",note:"Beta-lactam",halal:"halal"},
+{g:"Meropenem 1g vial",brand:"Meropenem",cat:"icu",dose:"1g IV q8h",ind:"Severe sepsis",contra:"Pen allergy",side:"Seizure",price:"৳900",preg:"B",note:"Carbapenem",halal:"halal"}
+,
+{g:"Imipenem-cilastatin 500mg",brand:"Tienam",cat:"icu",dose:"500mg IV q6h",ind:"Severe infection",contra:"Seizure disorder",side:"Seizure",price:"৳1200",preg:"C",note:"Carbapenem",halal:"halal"},
+{g:"Ceftriaxone 1g inj",brand:"Rocephin",cat:"icu",dose:"1-2g IV OD",ind:"Sepsis",contra:"None",side:"Biliary sludge",price:"৳120",preg:"B",note:"Cephalosporin",halal:"halal"},
+{g:"Ceftazidime 1g vial",brand:"Fortum",cat:"icu",dose:"1-2g IV q8h",ind:"Pseudomonas",contra:"Pen allergy",side:"Diarrhea",price:"৳300",preg:"B",note:"Cephalosporin",halal:"halal"},
+{g:"Cefepime 1g vial",brand:"Maxipime",cat:"icu",dose:"1-2g IV q8-12h",ind:"Febrile neutropenia",contra:"Pen allergy",side:"Neurotoxicity",price:"৳700",preg:"B",note:"Cephalosporin",halal:"halal"},
+{g:"Vancomycin 500mg vial",brand:"Vancocin",cat:"icu",dose:"15-20 mg/kg IV",ind:"MRSA",contra:"Renal impairment",side:"Nephrotoxicity",price:"৳400",preg:"B",note:"Glycopeptide",halal:"halal"},
+{g:"Linezolid 600mg inj",brand:"Zyvox",cat:"icu",dose:"600mg IV q12h",ind:"VRE/MRSA",contra:"MAOI",side:"Myelosuppression",price:"৳1500",preg:"C",note:"Oxazolidinone",halal:"halal"},
+{g:"Colistin 1M IU vial",brand:"Colistin",cat:"icu",dose:"2.5-5 mg/kg/day",ind:"MDR GNB",contra:"Renal impairment",side:"Nephrotoxicity",price:"৳900",preg:"C",note:"Polymyxin",halal:"halal"},
+{g:"Amikacin 500mg vial",brand:"Amikin",cat:"icu",dose:"15 mg/kg IV OD",ind:"Gram negative",contra:"Renal impairment",side:"Nephro/oto",price:"৳180",preg:"D",note:"Aminoglycoside",halal:"halal"},
+{g:"Gentamicin 80mg vial",brand:"Garamycin",cat:"icu",dose:"3-5 mg/kg IV",ind:"Gram negative",contra:"Renal impairment",side:"Nephro/oto",price:"৳60",preg:"D",note:"Aminoglycoside",halal:"halal"},
+{g:"Ciprofloxacin 200mg/100ml",brand:"Cipro IV",cat:"icu",dose:"400mg IV q12h",ind:"UTI/pneumonia",contra:"QT prolong",side:"Tendon rupture",price:"৳250",preg:"C",note:"Fluoroquinolone",halal:"halal"},
+{g:"Levofloxacin 500mg/100ml",brand:"Levaquin IV",cat:"icu",dose:"500-750mg IV OD",ind:"Pneumonia",contra:"QT prolong",side:"Tendon rupture",price:"৳300",preg:"C",note:"Fluoroquinolone",halal:"halal"},
+{g:"Metronidazole 500mg/100ml",brand:"Flagyl IV",cat:"icu",dose:"500mg IV q8h",ind:"Anaerobic",contra:"Alcohol",side:"Neuropathy",price:"৳150",preg:"B",note:"Nitroimidazole",halal:"halal"},
+{g:"Clindamycin 600mg/4ml",brand:"Dalacin IV",cat:"icu",dose:"600-900mg IV q8h",ind:"Anaerobic",contra:"None",side:"C.diff",price:"৳200",preg:"B",note:"Lincosamide",halal:"halal"},
+{g:"Fluconazole 200mg/100ml",brand:"Diflucan IV",cat:"icu",dose:"400-800mg IV OD",ind:"Candidiasis",contra:"Liver",side:"QT prolong",price:"৳600",preg:"C",note:"Azole",halal:"halal"},
+{g:"Amphotericin B 50mg",brand:"Fungizone",cat:"icu",dose:"0.5-1 mg/kg IV",ind:"Severe fungal",contra:"Renal impairment",side:"Nephrotoxicity",price:"৳1200",preg:"B",note:"Polyene",halal:"halal"},
+{g:"Caspofungin 50mg vial",brand:"Cancidas",cat:"icu",dose:"70mg then 50mg IV",ind:"Invasive candidiasis",contra:"Liver",side:"Fever",price:"৳6000",preg:"C",note:"Echinocandin",halal:"halal"},
+{g:"Voriconazole 200mg vial",brand:"Vfend",cat:"icu",dose:"6mg/kg q12h then 4mg/kg",ind:"Aspergillosis",contra:"Liver",side:"Visual disturbance",price:"৳4500",preg:"D",note:"Azole",halal:"halal"},
+{g:"Acyclovir 250mg vial",brand:"Zovirax IV",cat:"icu",dose:"10 mg/kg IV q8h",ind:"HSV encephalitis",contra:"Renal impairment",side:"Nephrotoxicity",price:"৳350",preg:"B",note:"Antiviral",halal:"halal"},
+{g:"Oseltamivir 75mg cap",brand:"Tamiflu",cat:"icu",dose:"75mg PO BD",ind:"Influenza",contra:"None",side:"Nausea",price:"৳120",preg:"C",note:"Neuraminidase inhibitor",halal:"halal"},
+{g:"Lopinavir/ritonavir",brand:"Kaletra",cat:"icu",dose:"400/100mg PO BD",ind:"COVID/HIV",contra:"Liver",side:"Diarrhea",price:"৳500",preg:"C",note:"Protease inhibitor",halal:"halal"},
+{g:"Omeprazole 40mg IV",brand:"Seclo IV",cat:"icu",dose:"40mg IV OD",ind:"Stress ulcer proph",contra:"None",side:"Headache",price:"৳150",preg:"C",note:"PPI",halal:"halal"},
+{g:"Pantoprazole 40mg IV",brand:"Pantocid IV",cat:"icu",dose:"40mg IV OD",ind:"Stress ulcer proph",contra:"None",side:"Headache",price:"৳180",preg:"B",note:"PPI",halal:"halal"},
+{g:"Ranitidine 50mg/2ml",brand:"Zantac IV",cat:"icu",dose:"50mg IV q8h",ind:"Stress ulcer proph",contra:"None",side:"Confusion",price:"৳40",preg:"B",note:"H2 blocker",halal:"halal"},
+{g:"Sucralfate 1g/10ml",brand:"Sucralfate susp",cat:"icu",dose:"1g NG q6h",ind:"Stress ulcer proph",contra:"Renal impairment",side:"Constipation",price:"৳120",preg:"B",note:"Mucosal protectant",halal:"halal"},
+{g:"Ondansetron 4mg/2ml",brand:"Zofran IV",cat:"icu",dose:"4mg IV q8h",ind:"Nausea/vomiting",contra:"QT prolong",side:"Headache",price:"৳80",preg:"B",note:"5HT3 antagonist",halal:"halal"}
+,
+{g:"Metoclopramide 10mg/2ml",brand:"Reglan IV",cat:"icu",dose:"10mg IV q8h",ind:"Gastroparesis",contra:"Parkinson",side:"EPS",price:"৳30",preg:"C",note:"Prokinetic",halal:"halal"},
+{g:"Haloperidol 5mg/ml",brand:"Haldol",cat:"icu",dose:"2-5mg IV/IM",ind:"Delirium",contra:"QT prolong",side:"EPS",price:"৳60",preg:"C",note:"Antipsychotic",halal:"halal"},
+{g:"Lorazepam 2mg/ml",brand:"Ativan",cat:"icu",dose:"1-4 mg IV",ind:"ICU sedation",contra:"Shock",side:"Resp depression",price:"৳90",preg:"D",note:"Benzodiazepine",halal:"halal"},
+{g:"Phenobarbital 200mg/ml",brand:"Luminal",cat:"icu",dose:"15-20 mg/kg IV",ind:"Status epilepticus",contra:"Liver",side:"Resp depression",price:"৳100",preg:"D",note:"Barbiturate",halal:"halal"},
+{g:"Phenytoin 50mg/ml",brand:"Dilantin",cat:"icu",dose:"15-20 mg/kg IV",ind:"Status epilepticus",contra:"Heart block",side:"Hypotension",price:"৳120",preg:"D",note:"Anticonvulsant",halal:"halal"},
+{g:"Levetiracetam 500mg/5ml",brand:"Keppra IV",cat:"icu",dose:"1000-1500mg IV",ind:"Seizure",contra:"Renal impairment",side:"Somnolence",price:"৳600",preg:"C",note:"Anticonvulsant",halal:"halal"},
+{g:"Valproate 400mg/4ml",brand:"Depakene IV",cat:"icu",dose:"15-20 mg/kg IV",ind:"Status epilepticus",contra:"Liver/preg",side:"Hepatotoxicity",price:"৳400",preg:"X",note:"Anticonvulsant",halal:"halal"},
+{g:"Thiopental 2.5%",brand:"Pentothal",cat:"icu",dose:"3-5 mg/kg IV",ind:"RSI",contra:"Porphyria",side:"Hypotension",price:"৳150",preg:"C",note:"Barbiturate",halal:"halal"},
+{g:"Sodium nitroprusside 50mg",brand:"Nipride",cat:"icu",dose:"0.3-10 mcg/kg/min",ind:"Hypertensive emergency",contra:"Liver",side:"Cyanide toxicity",price:"৳300",preg:"C",note:"Vasodilator",halal:"halal"},
+{g:"Nitroglycerin 5mg/ml",brand:"NTG",cat:"icu",dose:"5-200 mcg/min",ind:"ACS/hypertension",contra:"Hypotension",side:"Headache",price:"৳200",preg:"C",note:"Vasodilator",halal:"halal"},
+{g:"Labetalol 5mg/ml",brand:"Trandate",cat:"icu",dose:"20mg IV then 40-80mg",ind:"Hypertensive emergency",contra:"Asthma",side:"Bradycardia",price:"৳180",preg:"C",note:"Beta blocker",halal:"halal"},
+{g:"Esmolol 10mg/ml",brand:"Brevibloc",cat:"icu",dose:"500 mcg/kg then 50-200",ind:"Aortic dissection",contra:"Heart block",side:"Hypotension",price:"৳900",preg:"C",note:"Beta blocker",halal:"halal"},
+{g:"Nicardipine 2.5mg/ml",brand:"Cardene",cat:"icu",dose:"5-15 mg/hr IV",ind:"Hypertensive emergency",contra:"Heart failure",side:"Hypotension",price:"৳500",preg:"C",note:"CCB",halal:"halal"},
+{g:"Clevidipine 0.5mg/ml",brand:"Cleviprex",cat:"icu",dose:"1-2 mg/hr IV",ind:"Hypertensive emergency",contra:"Lipid disorder",side:"Hypotension",price:"৳1200",preg:"C",note:"CCB",halal:"halal"},
+{g:"Hydralazine 20mg/ml",brand:"Hydralazine IV",cat:"icu",dose:"10-20mg IV",ind:"Hypertensive emergency",contra:"CAD",side:"Reflex tachy",price:"৳60",preg:"C",note:"Vasodilator",halal:"halal"},
+{g:"Fenoldopam 10mg/ml",brand:"Corlopam",cat:"icu",dose:"0.1-1.6 mcg/kg/min",ind:"Hypertensive emergency",contra:"Glaucoma",side:"Hypotension",price:"৳800",preg:"C",note:"Dopamine agonist",halal:"halal"},
+{g:"Iloprost 10mcg/ml",brand:"Ventavis",cat:"icu",dose:"2.5-5 mcg inhaled",ind:"Pulmonary HTN",contra:"None",side:"Hypotension",price:"৳2000",preg:"C",note:"Prostacyclin",halal:"halal"},
+{g:"Epoprostenol 0.5mg",brand:"Flolan",cat:"icu",dose:"2 ng/kg/min IV",ind:"Pulmonary HTN",contra:"None",side:"Hypotension",price:"৳5000",preg:"C",note:"Prostacyclin",halal:"halal"},
+{g:"Bosentan 62.5mg",brand:"Tracleer",cat:"icu",dose:"62.5mg PO BD",ind:"Pulmonary HTN",contra:"Liver",side:"Hepatotoxicity",price:"৳2500",preg:"X",note:"ERA",halal:"halal"},
+{g:"Sildenafil 20mg",brand:"Revatio",cat:"icu",dose:"20mg PO TDS",ind:"Pulmonary HTN",contra:"Nitrates",side:"Hypotension",price:"৳150",preg:"B",note:"PDE5 inhibitor",halal:"halal"},
+{g:"Tadalafil 20mg",brand:"Adcirca",cat:"icu",dose:"40mg PO OD",ind:"Pulmonary HTN",contra:"Nitrates",side:"Hypotension",price:"৳300",preg:"B",note:"PDE5 inhibitor",halal:"halal"},
+{g:"Ivabradine 5mg",brand:"Corlanor",cat:"icu",dose:"5mg PO BD",ind:"Chronic HF",contra:"Bradycardia",side:"Bradycardia",price:"৳400",preg:"C",note:"If blocker",halal:"halal"},
+{g:"Sacubitril/valsartan 49/51",brand:"Entresto",cat:"icu",dose:"49/51mg PO BD",ind:"HFrEF",contra:"Angioedema",side:"Hypotension",price:"৳600",preg:"D",note:"ARNI",halal:"halal"},
+{g:"Dapagliflozin 10mg",brand:"Farxiga",cat:"icu",dose:"10mg PO OD",ind:"HFrEF",contra:"DKA",side:"UTI",price:"৳200",preg:"C",note:"SGLT2 inhibitor",halal:"halal"},
+{g:"Empagliflozin 10mg",brand:"Jardiance",cat:"icu",dose:"10mg PO OD",ind:"HFrEF",contra:"DKA",side:"UTI",price:"৳250",preg:"C",note:"SGLT2 inhibitor",halal:"halal"}
+);
+filterDrugs();
+function toggleLang(){currentLang=currentLang=='en'?'bn':'en';document.getElementById('langBtn').innerHTML=currentLang=='en'?'বাংলা':'EN';}
+function startVoice(){
+ if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){alert('Use Chrome for voice');return;}
+ let SR=window.SpeechRecognition||window.webkitSpeechRecognition; let r=new SR(); r.lang='en-US'; r.start();
+ document.getElementById('voiceStatus').style.display='block'; document.getElementById('voiceStatus').innerHTML='🎙️ Listening...';
+ r.onresult=e=>{let t=e.results[0][0].transcript; document.getElementById('search').value=t; filterDrugs(); document.getElementById('voiceStatus').innerHTML='✅ Heard: '+t; setTimeout(()=>document.getElementById('voiceStatus').style.display='none',2000);};
+ r.onerror=()=>{document.getElementById('voiceStatus').innerHTML='Try again';}
+}
+
+function startScanner(){document.getElementById('scan_res').innerHTML='Starting camera...'; html5QrcodeScanner=new Html5Qrcode("reader"); html5QrcodeScanner.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:100}},t=>{document.getElementById('scan_res').innerHTML=`✅ Scanned: ${t}`; searchDrugByBarcode(t); stopScanner();},()=>{}).catch(e=>{document.getElementById('scan_res').innerHTML='Camera error: '+e});}
+function stopScanner(){if(html5QrcodeScanner){html5QrcodeScanner.stop().catch(()=>{});}}
+function searchDrugByBarcode(code){document.getElementById('scan_res').innerHTML=`Barcode: ${code} - Searching... Square=8941101, Beximco=8941141`; showTab({target:document.querySelectorAll('.tab')[0]},'drug');}
+function searchBarcodeManual(){let c=document.getElementById('manualBarcode').value; if(c) searchDrugByBarcode(c);}
+function previewOCR(e){let f=e.target.files[0]; if(f){let img=document.getElementById('ocrPreview'); img.src=URL.createObjectURL(f); img.style.display='block';}}
+async function runOCR(){
+ let file=document.getElementById('ocrFile').files[0]; if(!file){alert('Upload photo');return;}
+ document.getElementById('ocrProgress').innerHTML='🧠 AI Reading 0%'; document.getElementById('ocr_res').innerHTML='Reading... 10-20 sec';
+ try{const {data:{text}}=await Tesseract.recognize(file,'eng',{logger:m=>{if(m.status=='recognizing text')document.getElementById('ocrProgress').innerHTML=`🧠 ${Math.round(m.progress*100)}%`}}); document.getElementById('ocrProgress').innerHTML='✅ Done'; document.getElementById('ocr_res').innerHTML=`Extracted: ${text.substring(0,400)}`; }catch(e){document.getElementById('ocr_res').innerHTML='Error '+e.message;}
+}
+let deferredPrompt; window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;});
+</script>
+</body>
+</html>

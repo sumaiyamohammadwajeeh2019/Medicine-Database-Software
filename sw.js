@@ -1,0 +1,3 @@
+const CACHE='bd-drug-v14-halal-voice'; const urls=['/','/index.html','/manifest.json','https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js','https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(urls)));});
+self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});

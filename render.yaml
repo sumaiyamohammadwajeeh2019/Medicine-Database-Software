@@ -1,0 +1,29 @@
+services:
+    - type: web
+    name: Medicine Reference Software
+    env: static
+    plan: free
+    buildCommand: echo "v15 FINAL - Halal + Voice + Bangla + Barcode + OCR + 250 Drugs + ICU Critical Care"
+    staticPublishPath: ./
+    routes:
+            - type: rewrite
+        source: /sw.js
+        destination: /sw.js
+            - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+            - path: /manifest.json
+        name: Content-Type
+        value: application/manifest+json
+            - path: /sw.js
+        name: Content-Type
+        value: application/javascript
+            - path: /sw.js
+        name: Service-Worker-Allowed
+        value: /
+    envVars:
+            - key: VERSION
+        value: v14-HALAL-VOICE-BANGLA-OCR-BARCODE-PWA-150
+            - key: DEVELOPER
+        value: Dr. Sumaiya Mohammad
