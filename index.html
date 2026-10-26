@@ -33,6 +33,7 @@ input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;mar
 <div class="top"><div style="display:flex;align-items:center;justify-content:center;gap:8px"><svg width="28" height="28" viewBox="0 0 64 64" style="vertical-align:middle"><circle cx="32" cy="32" r="30" fill="#ffffff22" stroke="#fff" stroke-width="2"/><rect x="26" y="14" width="12" height="36" rx="6" fill="#2e7d32"/><rect x="14" y="26" width="36" height="12" rx="6" fill="#c62828"/><circle cx="32" cy="32" r="6" fill="#fbc02d"/></svg><h1>💊 Medicine reference software— Dr. Sumaiya Mohammad</h1></div><p>250 Drugs | Voice | Bangla | Halal | Barcode | OCR | ICU Critical Care</p><p style="font-size:10px;opacity:.95;margin-top:2px">Developed by Dr. Sumaiya Mohammad, SMRR Team, Bangladesh</p></div>
 <div class="tabs">
 <div class="tab active" onclick="showTab(event,'drug')">💊 Drugs</div>
+<div class="tab" onclick="showTab(event,'system')">🫀 System-wise</div>
 <div class="tab" onclick="showTab(event,'scan')">📷 Scan</div>
 <div class="tab" onclick="showTab(event,'ocr')">📄 OCR</div>
 <div class="tab" onclick="showTab(event,'halal')">🕌 Halal Guide</div>
@@ -85,6 +86,8 @@ input,select{width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;mar
 - Islamic Medicine / Halal pharmaceutical references.<br>
 <b>Developer:</b> Dr. Sumaiya Mohammad, SMRR Team, Bangladesh<br>
 </div></div></div>
+
+<div id="system" class="panel"><div id="systemList"></div></div>
 
 <script>
 const drugs=[
@@ -346,6 +349,9 @@ drugs.push(
 {g:"Dapagliflozin 10mg",brand:"Farxiga",cat:"icu",dose:"10mg PO OD",ind:"HFrEF",contra:"DKA",side:"UTI",price:"৳200",preg:"C",note:"SGLT2 inhibitor",halal:"halal"},
 {g:"Empagliflozin 10mg",brand:"Jardiance",cat:"icu",dose:"10mg PO OD",ind:"HFrEF",contra:"DKA",side:"UTI",price:"৳250",preg:"C",note:"SGLT2 inhibitor",halal:"halal"}
 );
+const systemMap={analgesic:'Nervous System / Pain',antibiotic:'Infectious Diseases',gastric:'Gastrointestinal',htn:'Cardiovascular',diabetes:'Endocrine / Diabetes',gyn:'Reproductive / Gynecology',icu:'Critical Care / ICU'};
+function renderSystems(){let box=document.getElementById('systemList');if(!box)return;box.innerHTML='';let groups={};drugs.forEach(d=>{let s=systemMap[d.cat]||'Other';if(!groups[s])groups[s]=[];groups[s].push(d);});Object.keys(groups).sort().forEach(sys=>{box.innerHTML+=`<div class="card"><h3>${sys}</h3>`;groups[sys].forEach(d=>{box.innerHTML+=`<div style="font-size:11px;margin:6px 0;padding:6px;border-bottom:1px solid #eee"><b>${d.g}</b> (Generic: ${d.g})<br>Brand/Company: ${d.brand} | Price: ${d.price} | Preg: ${d.preg}<br>Dose: ${d.dose}<br>Use: ${d.ind}<br>Interactions: ${d.interactions||'Consult BNF/UpToDate for interactions'}</div>`;});box.innerHTML+='</div>';});}
+renderSystems();
 filterDrugs();
 function toggleLang(){currentLang=currentLang=='en'?'bn':'en';document.getElementById('langBtn').innerHTML=currentLang=='en'?'বাংলা':'EN';}
 function startVoice(){
